@@ -13,7 +13,7 @@ tab1, tab2, tab3 = st.tabs([f'{image_emoji} Image', f'{model_emoji} Mask', f'{pr
 with tab1:
    st.header(f'Source Image')
    img_array = cv2.imread(glob.glob(f'{os.getcwd()}/*.png')[0])
-    st.image(img_array)
+   st.image(img_array)
 
 with tab2:
    st.header(f'Model Output')
