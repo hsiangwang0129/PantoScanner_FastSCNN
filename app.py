@@ -8,7 +8,7 @@ model_emoji = '⚙️'
 profile_emoji = '📈'
 st.title('PantoScan')
 
-tab1, tab2, tab3 = st.tabs([f'{image_emoji} Image', f'{model_emoji} Mask', f'{profile_emoji} Measurement'])
+tab1, tab2, tab3 = st.tabs([f' {image_emoji}  Image', f' {model_emoji}  Mask', f' {profile_emoji}  Measurement'])
 
 with tab1:
    st.header(f'Source Image')
@@ -21,6 +21,7 @@ with tab2:
 
 with tab3:
    st.header(f'Profile Height')
-   #st.image("https://static.streamlit.io/examples/owl.jpg", width=200)
+   data = np.random.randn(10, 1)
+   st.line_chart(data)
 
 
