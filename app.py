@@ -29,7 +29,7 @@ def generate_data(slope, intercept, num_points):
   y = slope * x + intercept        # Generates linear function values
 
   # Add random noise with +/- 5% tolerance
-  noise = np.random.uniform(low=-0.05, high=0.05, size=num_points)
+  noise = np.random.uniform(low=-0.07, high=0.01, size=num_points)
   y += noise * y  # Scale noise by original y value for percentage variation
 
   return y.reshape(-1, 1)  # Reshape to column vector
