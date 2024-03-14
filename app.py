@@ -8,7 +8,8 @@ image_emoji = '📷'
 model_emoji = '⚙️'
 profile_emoji = '📈'
 st.title('PantoScanner')
-st.header('Example | Thickness measurement of sliding element')
+st.header('Example')
+st.subheader('Thickness measurement of sliding element')
 
 tab1, tab2, tab3 = st.tabs([f' {image_emoji}  Image', f' {model_emoji}  Mask', f' {profile_emoji}  Measurement'])
 
