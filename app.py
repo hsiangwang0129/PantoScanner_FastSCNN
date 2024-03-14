@@ -53,7 +53,7 @@ with tab3:
    # Use 'data' for your chart with linear degression and +/- 5% tolerance
 
    slope = -2  # Example slope for linear degression
-   intercept = 10
+   intercept = 45
    num_points = 20
     
    data = generate_data(slope, intercept, num_points)
