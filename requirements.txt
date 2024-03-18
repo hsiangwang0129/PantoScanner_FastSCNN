@@ -1,2 +1,15 @@
-opencv-python
-numpy
+numpy==1.23.5
+scipy==1.10.1
+pandas>=1.0.0
+opencv-python==4.6.0.66
+torch==2.1.2
+torchvision==0.16.2
+ultralytics==8.0.196
+dill==0.3.7
+seaborn>=0.11.0
+shapely>=2.0.2
+dataclasses~=0.6
+pydantic~=1.10.2
+matplotlib~=3.7.2
+glob2~=0.7
+segmentation-models-pytorch==0.2.0
