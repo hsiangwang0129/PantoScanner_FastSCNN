@@ -1,5 +1,4 @@
 import os
-from bitstring import BitString
 from datetime import datetime
 import math
 import numpy as np
@@ -27,63 +26,7 @@ class RailNumber:
     is_valid: bool = field(init=False, default=False)
 
     def __post_init__(self):
-        if self.hex_data:
-            self.decoding_flag = self.decode_hex()
-        if self.vehicle_number:
-            self.digits_vehicle_number = self.vehicle_number.replace(" ", "")
-            self.digits_vehicle_number = self.digits_vehicle_number.replace("-", "")
-            if len(self.digits_vehicle_number) >= 12:
-                self.vehicle_group = int(self.digits_vehicle_number[0:2])
-                self.country_id = int(self.digits_vehicle_number[2:4])
-                self.serial_number = int(self.digits_vehicle_number[4:11])
-                self.fleet_id = int(self.digits_vehicle_number[5:8])
-                self.fleet_member_id = int(self.digits_vehicle_number[8:11])
-                self.check_digit = int(self.digits_vehicle_number[11:])
-                self.is_valid = self.check_if_valid()
-
-    def decode_hex(self) -> int:
-        epc_binary_string = BitString(hex=self.hex_data).bin
-        epc_header = epc_binary_string[0:8]  # epc header has length of 8 bits and for GIAI-96 should be 00110100
-        if not epc_header == '00110100':
-            return 1
-        epc_filter = epc_binary_string[8:11]  # filter value has length 3, and can only be 001 which stands for rail
-        if not epc_filter == '001':
-            return 2
-        partition_value = int(epc_binary_string[11:14], base=2)  # indicates len of comp. prefix and asset ref
-        # should check that 0<= partition value <= 6
-        if not 0 <= partition_value <= 6:
-            return 3
-        company_prefix_bits = 40 - (
-                3 * partition_value + math.floor(partition_value / 3))  # resolve parition value to bit length
-        company_digits = 12 - partition_value  # resolve partition value to num of company prefix digits
-        # get num of bits according to partition value, then convert binary to int and get string of that int
-        epc_company_ref = str(int(epc_binary_string[14:14 + company_prefix_bits], base=2))
-        # now lets check that decoded company prefix digits have length that they are supposed to have
-        if not len(epc_company_ref) == company_digits:
-            return 4
-        self.company_ref = int(epc_company_ref)
-        # GIAI-96 has 96 bits, minus 14 bits for header, filter and partition leaves 82 bits for company prefix and asset ref
-        asset_reference_bits = 82 - company_prefix_bits
-        asset_reference_digits_max = 25 - company_digits  # max. asset reference digits, max does not have to be reached!!
-        epc_asset_ref_binary = epc_binary_string[14 + company_prefix_bits:]  # get binary part of epc string
-        if not len(epc_asset_ref_binary) == asset_reference_bits:
-            return 5
-        epc_asset_ref = str(int(epc_asset_ref_binary, base=2))  # whole asset ref num string
-        # now lets check that decoded company prefix digits have length that they are supposed to have
-        if not len(epc_asset_ref) <= asset_reference_digits_max:
-            return 6
-        ## now follows the splitting of asset reference according to OTIF Einheitliche Technische Vorschriften
-        direction_flag = epc_asset_ref[0:1]
-        self.direction = int(direction_flag)
-        rail_asset_number = epc_asset_ref[1:]  # get whole asset number to calculate and cross check the check digit
-        self.vehicle_number = " ".join([rail_asset_number[0:2], rail_asset_number[2:4],
-                                        rail_asset_number[4:11], rail_asset_number[11:]])
-        if not 1 <= self.direction <= 2:
-            return 7
-        elif not len(rail_asset_number) == 12:
-            return 8
-        else:
-            return 0
+        return 0
 
     def check_if_valid(self) -> bool:
         check_sum = 0
