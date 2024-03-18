@@ -1153,35 +1153,35 @@ def measure_strip(img_path: str, model_yolo: torch.nn.Module, segmentation_model
         return profile_a, profile_b
 
 
-CAMERA_MATRIX = [
-    [11100, 0, 1604],
-    [0, 11100, 1100],
-    [0, 0, 1]
-]
 
-OBJECT_REFERENCE_POINTS = [
-    [347, 0, 42],  # B
-    [347, 0, 522],  # D
-    [-347, 26, 480],  # F
-    [-347, 26, 0]]  # H
-
-LOWER_CONTOUR_QUADRATIC_CONSTANT = 0.00005
-CAMERA_PARAMETERS = (50, 0.0045, 2200, 3208)
-PLANE_PARAMETERS_CLOSE = ([0, 0, 0], (1, 0, 0), (0, 1, 0))  # Vector from pantograph coordinate frame to plane origin
-PLANE_PARAMETERS_FAR = ([0, 0, 480], (1, 0, 0), (0, 1, 0))  # Vector from pantograph coordinate frame to plane origin
-BOUNDARY_1 = (300, 92)
-BOUNDARY_2 = (650, 1500)
-IMAGE_SIZE_SEG = 1408
-IMAGE_WIDTH_SEG = 1408
-IMAGE_HEIGHT_SEG = 576
-
-path_image = 'testing/2022_10_02, 06_08_56_715981.png'  #'testing/2022_10_15, 06_07_50_539720.png'
-path_yolo_model = 'app/best.pt'
-path_segmentation_model = 'app/31_best_model.pth'
 
 
 
 if __name__ == '__main__':
+    CAMERA_MATRIX = [
+    [11100, 0, 1604],
+    [0, 11100, 1100],
+    [0, 0, 1]]
+
+    OBJECT_REFERENCE_POINTS = [
+        [347, 0, 42],  # B
+        [347, 0, 522],  # D
+        [-347, 26, 480],  # F
+        [-347, 26, 0]]  # H
+    
+    LOWER_CONTOUR_QUADRATIC_CONSTANT = 0.00005
+    CAMERA_PARAMETERS = (50, 0.0045, 2200, 3208)
+    PLANE_PARAMETERS_CLOSE = ([0, 0, 0], (1, 0, 0), (0, 1, 0))  # Vector from pantograph coordinate frame to plane origin
+    PLANE_PARAMETERS_FAR = ([0, 0, 480], (1, 0, 0), (0, 1, 0))  # Vector from pantograph coordinate frame to plane origin
+    BOUNDARY_1 = (300, 92)
+    BOUNDARY_2 = (650, 1500)
+    IMAGE_SIZE_SEG = 1408
+    IMAGE_WIDTH_SEG = 1408
+    IMAGE_HEIGHT_SEG = 576
+    
+    path_image = 'testing/2022_10_02, 06_08_56_715981.png'  #'testing/2022_10_15, 06_07_50_539720.png'
+    path_yolo_model = 'app/best.pt'
+    path_segmentation_model = 'app/31_best_model.pth'
     seg_dplv3_model, yolo_nn_model = prepare_networks_for_measurement(model_yolo_path=path_yolo_model,
                                                                       model_segmentation_path=path_segmentation_model)
 
