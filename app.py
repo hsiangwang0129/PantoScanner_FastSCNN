@@ -33,7 +33,6 @@ from strip_measure_4_0 import prepare_networks_for_measurement, measure_strip
 import plotly.express as px
 import pandas as pd
 
-
 IMG_BASE_DIR = 'images'
 CAMERA_MATRIX = [
     [11100, 0, 1604],
@@ -252,7 +251,14 @@ model_emoji = '⚙️'
 profile_emoji = '📈'
 st.title('PantoScanner')
 #st.subheader(f'Source Image')
+
+multi = '''This app processes the detection and segementation of a 
+Pantograph Sliding element from a train - and - demonstrates the 
+extraction of the thickness by displaying it in a chart.'''
+st.markdown(multi)
+
 st.image(st.session_state['current_image_array'])
+
 col1, col2, col3 = st.columns(3)
 # insert prev button --> decrement image_selected_index i = min(i -= 1, 0) % or just overflow to last image
 with col1:
