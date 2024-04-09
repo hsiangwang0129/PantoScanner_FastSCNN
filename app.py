@@ -57,8 +57,8 @@ IMAGE_SIZE_SEG = 1408
 IMAGE_WIDTH_SEG = 1408
 IMAGE_HEIGHT_SEG = 576
 
-path_yolo_model = os.path.join(os.getcwd(), 'app', 'best.pt')
-path_segmentation_model = os.path.join(os.getcwd(), 'app', '31_best_model.pth')
+path_yolo_model = os.path.join(os.getcwd(), 'app', 'detection_model.pt')
+path_segmentation_model = os.path.join(os.getcwd(), 'app', 'segmentation_model.pth')
 
 
 def get_image_paths(base_dir: str):
