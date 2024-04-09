@@ -265,19 +265,16 @@ st.markdown(
     <style>
         div[data-testid="column"]:nth-of-type(1)
         {
-            border:1px solid purple;
             text-align: start;
         } 
 
         div[data-testid="column"]:nth-of-type(2)
         {
-            border:1px solid green;
             text-align: center;
         } 
         
         div[data-testid="column"]:nth-of-type(3)
         {
-            border:1px solid purple;
             text-align: end;
         } 
     </style>
@@ -287,13 +284,13 @@ st.markdown(
 col1, col2, col3 = st.columns(3)
 # insert prev button --> decrement image_selected_index i = min(i -= 1, 0) % or just overflow to last image
 with col1:
-    button_previous = st.button("previous Image", on_click=callback_button_previous, kwargs={'overflow_index': True})
+    button_previous = st.button("Previous image", on_click=callback_button_previous, kwargs={'overflow_index': True})
 
 with col2:
     button_measure = st.button("Measure")
 
 with col3:
-    button_next = st.button("next Image", on_click=callback_button_next, kwargs={'overflow_index': True})
+    button_next = st.button("Next image", on_click=callback_button_next, kwargs={'overflow_index': True})
 
 if button_measure:
     callback_button_measure()
