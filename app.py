@@ -60,15 +60,18 @@ IMAGE_HEIGHT_SEG = 576
 path_yolo_model = os.path.join(os.getcwd(), 'app', 'detection_model.pt')
 path_segmentation_model = os.path.join(os.getcwd(), 'app', 'segmentation_model.pth')
 
-
+# Function: get_image_paths
+# Description: Returns a list of image paths in the specified directory.
 def get_image_paths(base_dir: str):
     return glob.glob(f'{os.getcwd()}/{base_dir}/*.png')
 
-
+# Function: get_num_images
+# Description: Returns the number of images in the current session state.
 def get_num_images():
     return len(st.session_state['image_path_list'])
 
-
+# Function: increment_index
+# Description: Increments the current image index by 1, taking into account the maximum index and optional overflow behavior.
 def increment_index(index_current: int, max_index: int, overflow=False, min_index=0):
     index_new = index_current + 1
     if index_new <= max_index:
@@ -78,7 +81,8 @@ def increment_index(index_current: int, max_index: int, overflow=False, min_inde
     else:
         return index_current
 
-
+# Function: decrement_index
+# Description: Decrements the current image index by 1, taking into account the minimum index and optional overflow behavior.
 def decrement_index(index_current: int, min_index, overflow=False, max_index=-1):
     index_new = index_current - 1
     if index_new >= min_index:
@@ -88,30 +92,35 @@ def decrement_index(index_current: int, min_index, overflow=False, max_index=-1)
     else:
         return index_current
 
-
+# Function: callback_button_previous
+# Description: Callback function for the "previous Image" button. Updates the current image index and calls update_on_index_change.
 def callback_button_previous(overflow_index=True):
     new_index = decrement_index(st.session_state['image_index_current'], min_index=0,
                                 overflow=overflow_index, max_index=st.session_state['num_images']-1)
     update_on_index_change(new_index)
 
-
+# Function: callback_button_next
+# Description: Callback function for the "next Image" button. Updates the current image index and calls update_on_index_change.
 def callback_button_next(overflow_index=True):
     new_index = increment_index(st.session_state['image_index_current'], st.session_state['num_images'],
                                 overflow=overflow_index, min_index=0)
     update_on_index_change(new_index)
 
-
+# Function: update_on_index_change
+# Description: Updates the session state variables related to the current image index and the current image array. Calls get_current_image and get_current_measurement.
 def update_on_index_change(new_index: int):
     st.session_state['image_index_current'] = new_index
     st.session_state['current_image_array'] = get_current_image()
     # put the current bale boundaries into the list, regardless of whether they have been stored to the database
     st.session_state['current_measurement'] = get_current_measurement()
 
-
+# Function: load_image_array
+# Description: Loads an image array from the specified image path.
 def load_image_array(image_path: str):
     return cv2.imread(image_path)
 
-
+# Function: get_current_image
+# Description: Returns the current image array based on the current image index. If the image array is not already loaded, it loads it using load_image_array.
 def get_current_image():
     index_current = st.session_state['image_index_current']
     this_img_current = st.session_state['image_data_list'][index_current]
@@ -122,7 +131,8 @@ def get_current_image():
         st.session_state['image_data_list'][index_current] = this_img_current
         return this_img_current
 
-
+# Function: callback_button_measure
+# Description: Callback function for the "Measure" button. Calls either display_cached_measurement_data or display_calculate_measurement_data based on whether the current image has a cached measurement.
 def callback_button_measure():
     has_measurement, measurement_result = get_current_measurement()
     if has_measurement:
@@ -130,12 +140,14 @@ def callback_button_measure():
     else:
         display_calculate_measurement_data()
 
-
+# Function: display_cached_measurement_data
+# Description: Displays the cached measurement data for the current image.
 def display_cached_measurement_data():
     st.info('Getting cached measurement', icon="ℹ️")
     display_measurement()
 
-
+# Function: display_calculate_measurement_data
+# Description: Calculates the measurement data for the current image and updates the session state. Displays the measurement data.
 def display_calculate_measurement_data():
     with st.spinner('Calculating Profile Height....'):
         this_image_path = st.session_state['image_path_list'][st.session_state['image_index_current']]
@@ -144,7 +156,8 @@ def display_calculate_measurement_data():
     st.success('Measurement is done !')
     display_measurement()
 
-
+# Function: measure_image
+# Description: Calls the measure_strip function from the strip_measure_4_0 module to measure the strip in the current image. Returns the measurement result.
 def measure_image(image_path: str):
     measurement_result = measure_strip(img_path=image_path,
                                        model_yolo=st.session_state['models']['detection'],
@@ -166,7 +179,8 @@ def measure_image(image_path: str):
     arr_1[:, 0] = np.abs(arr_1[:, 0])
     return arr_0, arr_1
 
-
+# Function: get_current_measurement
+# Description: Returns the current measurement data based on the current image index. If the measurement data is not available, returns False and None.
 def get_current_measurement():
     this_measurement = st.session_state['measurement_data_list'][st.session_state['image_index_current']]
     if this_measurement is not None:
@@ -174,18 +188,21 @@ def get_current_measurement():
     else:
         return False, None
 
-
+# Function: update_measurements
+# Description: Updates the measurement data for the specified index in the session state.
 def update_measurements(measurement, index_measurement):
     st.session_state['measurement_data_list'][index_measurement] = measurement
 
-
+# Function: display_measurement
+# Description: Displays the measurement data for the current image.
 def display_measurement():
     has_measurement, measurement_data = get_current_measurement()
     if has_measurement:
         st.subheader(f'Profile Height')
         measurement_to_streamlit_chart(measurement_data[0], measurement_data[1])
 
-
+# Function: measurement_to_streamlit_chart
+# Description: Converts the measurement data into a Pandas DataFrame and plots a line chart using Plotly.
 def measurement_to_streamlit_chart(profile_array_1, profile_array_2):
     height_list = []
     coord_list = []
@@ -200,7 +217,8 @@ def measurement_to_streamlit_chart(profile_array_1, profile_array_2):
     fig = px.line(df, x='x', y='y', color='indicator', symbol="indicator")
     st.plotly_chart(fig, use_container_width=True)
 
-
+# Initialization section
+    
 if 'image_path_list' not in st.session_state:
     st.session_state['image_path_list'] = get_image_paths(IMG_BASE_DIR)
 
@@ -227,7 +245,8 @@ if 'models' not in st.session_state:
                                                                       model_segmentation_path=path_segmentation_model)
     st.session_state['models'] = {'segmentation': seg_dplv3_model, 'detection': yolo_nn_model}
 
-
+# Display section
+    
 image_emoji = '📷'
 model_emoji = '⚙️'
 profile_emoji = '📈'
