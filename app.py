@@ -197,7 +197,7 @@ def update_measurements(measurement, index_measurement):
 def display_measurement():
     has_measurement, measurement_data = get_current_measurement()
     if has_measurement:
-        st.subheader(f'Profile Height')
+        st.subheader(f'Profile height (mm)')
         measurement_to_streamlit_chart(measurement_data[0], measurement_data[1])
 
 # Function: measurement_to_streamlit_chart
