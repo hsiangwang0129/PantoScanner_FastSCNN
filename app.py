@@ -254,8 +254,10 @@ st.title('PantoScanner')
 #st.subheader(f'Source Image')
 
 multi = '''This app processes the detection and segementation of a 
-Pantograph Sliding element from a train - and - demonstrates the 
-extraction of the thickness by displaying it in a chart.'''
+pantograph sliding element from a train - and - demonstrates the 
+extraction of the thickness by displaying it in a chart. To build 
+a time series of thicknesses per sliding element, e.g. by selecting 
+the thickness in the middle.'''
 st.markdown(multi)
 
 st.image(st.session_state['current_image_array'])
