@@ -249,6 +249,7 @@ if 'models' not in st.session_state:
 image_emoji = '📷'
 model_emoji = '⚙️'
 profile_emoji = '📈'
+st.set_page_config(layout='wide')
 st.title('PantoScanner')
 #st.subheader(f'Source Image')
 
@@ -258,6 +259,30 @@ extraction of the thickness by displaying it in a chart.'''
 st.markdown(multi)
 
 st.image(st.session_state['current_image_array'])
+
+st.markdown(
+    """
+    <style>
+        div[data-testid="column"]:nth-of-type(1)
+        {
+            border:1px solid purple;
+            text-align: start;
+        } 
+
+        div[data-testid="column"]:nth-of-type(2)
+        {
+            border:1px solid green;
+            text-align: center;
+        } 
+        
+        div[data-testid="column"]:nth-of-type(3)
+        {
+            border:1px solid purple;
+            text-align: end;
+        } 
+    </style>
+    """,unsafe_allow_html=True
+)
 
 col1, col2, col3 = st.columns(3)
 # insert prev button --> decrement image_selected_index i = min(i -= 1, 0) % or just overflow to last image
