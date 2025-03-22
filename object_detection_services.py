@@ -35,7 +35,7 @@ import matplotlib.patches as patches
 import numpy as np
 from dataclasses import dataclass, field, asdict, astuple, InitVar
 from typing import List, Dict, Tuple
-
+import streamlit as st
 
 @dataclass
 class BBoxCoordinates:
@@ -89,33 +89,34 @@ class BBoxCoordinates:
 
 def evaluate_yolo(model_path: str, img_path: str, img_size: int, bound_1: Tuple[int, int], bound_2: Tuple[int, int]):
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, verbose=None)  # local model
-    inpt_img = cv.imread(img_path)
-    img_1 = inpt_img[bound_1[0]:bound_1[0] + img_size, bound_1[1]:bound_1[1] + img_size, :]
-    img_2 = inpt_img[bound_2[0]:bound_2[0] + img_size, bound_2[1]:bound_2[1] + img_size, :]
-    inpt_imgs = [img_1, img_2]
-    results = model(inpt_imgs, size=img_size)
+    input_img = cv.imread(img_path)
+    # img_1 = inpt_img[bound_1[0]:bound_1[0] + img_size, bound_1[1]:bound_1[1] + img_size, :]
+    # img_2 = inpt_img[bound_2[0]:bound_2[0] + img_size, bound_2[1]:bound_2[1] + img_size, :]
+    # inpt_imgs = [img_1, img_2]
+    # results = model(inpt_imgs, size=img_size)
 
-    result_list_images = []
-    results_1 = results.pandas().xyxy[0].reset_index()  # img1 predictions (pandas)
-    results_2 = results.pandas().xyxy[1].reset_index()  # img1 predictions (pandas)
+    # result_list_images = []
+    # results_1 = results.pandas().xyxy[0].reset_index()  # img1 predictions (pandas)
+    # results_2 = results.pandas().xyxy[1].reset_index()  # img1 predictions (pandas)
 
-    for index, row in results_1.iterrows():
-        result_list_images.append(
-            [row['xmin'] + bound_1[1], row['xmax'] + bound_1[1], row['ymin'] + bound_1[0], row['ymax'] + bound_1[0]])
-    for index, row in results_2.iterrows():
-        result_list_images.append(
-            [row['xmin'] + bound_2[1], row['xmax'] + bound_2[1], row['ymin'] + bound_2[0], row['ymax'] + bound_2[0]])
+    # for index, row in results_1.iterrows():
+    #     result_list_images.append(
+    #         [row['xmin'] + bound_1[1], row['xmax'] + bound_1[1], row['ymin'] + bound_1[0], row['ymax'] + bound_1[0]])
+    # for index, row in results_2.iterrows():
+    #     result_list_images.append(
+    #         [row['xmin'] + bound_2[1], row['xmax'] + bound_2[1], row['ymin'] + bound_2[0], row['ymax'] + bound_2[0]])
 
-    result_arr = np.asarray(result_list_images)
-    x_min = np.min(result_arr[:, 0])
-    x_max = np.max(result_arr[:, 1])
-    y_min = np.min(result_arr[:, 2])
-    y_max = np.max(result_arr[:, 3])
+    # result_arr = np.asarray(result_list_images)
+    # x_min = np.min(result_arr[:, 0])
+    # x_max = np.max(result_arr[:, 1])
+    # y_min = np.min(result_arr[:, 2])
+    # y_max = np.max(result_arr[:, 3])
 
-    bound_final_x = max(min(int(0.5 * (x_min + x_max - img_size)), 3208 - img_size), 0)
-    bound_final_y = max(min(int(0.5 * (y_min + y_max - img_size)), 2200 - img_size), 0)
+    # bound_final_x = max(min(int(0.5 * (x_min + x_max - img_size)), 3208 - img_size), 0)
+    # bound_final_y = max(min(int(0.5 * (y_min + y_max - img_size)), 2200 - img_size), 0)
 
-    img_final = inpt_img[bound_final_y:bound_final_y + img_size, bound_final_x:bound_final_x + img_size, :]
+    # img_final = inpt_img[bound_final_y:bound_final_y + img_size, bound_final_x:bound_final_x + img_size, :]
+    img_final = input_img
     imgs_final = [img_final]
     results_final = model(imgs_final, size=img_size)
     bboxes_final = results_final.pandas().xyxy[0].reset_index()  # img1 predictions (pandas)
@@ -127,99 +128,69 @@ def evaluate_yolo(model_path: str, img_path: str, img_size: int, bound_1: Tuple[
         final_bbox_list.append(this_box)
 
     return final_bbox_list
+def draw_yolo_detections(image, detections, model_names):
+    """
+    在圖片上繪製 YOLO 偵測框。
+    - image: 原始圖片 (NumPy 陣列)
+    - detections: YOLO 偵測結果 (xywh 格式)
+    - model_names: YOLO 模型的類別名稱
+    """
+    img_copy = image.copy()
+    for detection in detections:
+        x_center, y_center, width, height, confidence, class_id = detection
+        class_id = int(class_id)  # 轉為整數類別 ID
+        class_name = model_names[class_id]  # 查找類別名稱
+        confidence = float(confidence)
 
+        # 轉換中心點格式為左上角 (x_min, y_min) 和右下角 (x_max, y_max)
+        x_min = int(x_center - width / 2)
+        y_min = int(y_center - height / 2)
+        x_max = int(x_center + width / 2)
+        y_max = int(y_center + height / 2)
+
+        # 畫出邊界框
+        cv.rectangle(img_copy, (x_min, y_min), (x_max, y_max), (255, 0, 0), 2)
+        label = f"{class_name}: {confidence:.2f}"
+        cv.putText(img_copy, label, (x_min, y_min - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+    return img_copy
 
 def evaluate_yolo_2(model_loaded, img_path: str, img_size: int, bound_1: Tuple[int, int], bound_2: Tuple[int, int]):
     model = model_loaded
-    inpt_img = cv.imread(img_path)
-    img_1 = inpt_img[bound_1[0]:bound_1[0] + img_size, bound_1[1]:bound_1[1] + img_size, :]
-    img_2 = inpt_img[bound_2[0]:bound_2[0] + img_size, bound_2[1]:bound_2[1] + img_size, :]
-    inpt_imgs = [img_1, img_2]
-    results = model(inpt_imgs, size=img_size)
-
-    result_list_images = []
-    results_1 = results.pandas().xyxy[0].reset_index()  # img1 predictions (pandas)
-    results_2 = results.pandas().xyxy[1].reset_index()  # img1 predictions (pandas)
-
-    for index, row in results_1.iterrows():
-        result_list_images.append(
-            [row['xmin'] + bound_1[1], row['xmax'] + bound_1[1], row['ymin'] + bound_1[0], row['ymax'] + bound_1[0]])
-    for index, row in results_2.iterrows():
-        result_list_images.append(
-            [row['xmin'] + bound_2[1], row['xmax'] + bound_2[1], row['ymin'] + bound_2[0], row['ymax'] + bound_2[0]])
-
-    result_arr = np.asarray(result_list_images)
-    x_min = np.min(result_arr[:, 0])
-    x_max = np.max(result_arr[:, 1])
-    y_min = np.min(result_arr[:, 2])
-    y_max = np.max(result_arr[:, 3])
-
-    bound_final_x = max(min(int(0.5 * (x_min + x_max - img_size)), 3208 - img_size), 0)
-    bound_final_y = max(min(int(0.5 * (y_min + y_max - img_size)), 2200 - img_size), 0)
-
-    img_final = inpt_img[bound_final_y:bound_final_y + img_size, bound_final_x:bound_final_x + img_size, :]
-    imgs_final = [img_final]
-    results_final = model(imgs_final, size=img_size)
-    bboxes_final = results_final.pandas().xyxy[0].reset_index()  # img1 predictions (pandas)
-
-    final_bbox_list = []
-    for index, row in bboxes_final.iterrows():
-        this_box = BBoxCoordinates(row['ymin'] + bound_final_y, row['ymax'] + bound_final_y,
-                                   row['xmin'] + bound_final_x, row['xmax'] + bound_final_x)
-        final_bbox_list.append(this_box)
-
-    return final_bbox_list
+    input_img = cv.imread(img_path)
+    
+    img_final = cv.resize(input_img,(1408,1408))
+    # img_final_rgb = cv.cvtColor(img_final,cv.COLOR_BGR2RGB)
+    # st.image(img_final)
+    
 
 
-#
-#
-# img_folder_path = 'C:/Users/hofst/PycharmProjects/ImageAnalysis_SBB/training_data/ext_label_1/images/'
-# img_list = [os.path.normpath(this_path) for this_path in glob(img_folder_path + '*.png')]
-# b_box_list = []
-# model_path_1 = 'C:\\Users\\hofst\\PycharmProjects\\ImageAnalysis_SBB\\yolov5\\data\\richard\\yolo_training_test_1408_size_m\\weights\\best.pt'
-# img_path_new = 'C:\\Users\\hofst\\PycharmProjects\\ImageAnalysis_SBB\\training_data\\test_1.png'
-# bound_1_new = (300, 92)
-# bound_2_new = (650, 1500)
-# img_size_new = 1408
-#
-# this_model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path_1, verbose=False)  # local model
-#
-# for img_path_new in img_list:
-#     test_result = evaluate_yolo_2(this_model, img_path_new, img_size_new, bound_1_new, bound_2_new)
-#     b_box_list.append(test_result)
-# matplotlib.use('TkAgg') # Change backend after loading model
-# fig, ax = plt.subplots()
-# # Display the image
-# ax.imshow(cv.imread(img_path_new), cmap='gray')
-# # Create a Rectangle patch
-# rect = patches.Rectangle((test_result[0].y_min, test_result[0].x_min), test_result[0].y_max - test_result[0].y_min, test_result[0].x_max - test_result[0].x_min, linewidth=1, edgecolor='r', facecolor='none')
-# rect_2 = patches.Rectangle((test_result[1].y_min, test_result[1].x_min), test_result[1].y_max - test_result[1].y_min, test_result[1].x_max - test_result[1].x_min, linewidth=1, edgecolor='b', facecolor='none')
-#
-# # Add the patch to the Axes
-# ax.add_patch(rect)
-# ax.add_patch(rect_2)
-# fig.show()
-#
-# #x_1_list = []
-# #y_1_list = []
-# #x_2_list = []
-# #y_2_list = []
-#
-# #for box_pair in b_box_list:
-# #    box_1 = box_pair[0]
-# #    box_2 = box_pair[1]
-# #    x_1_list.append(box_1.y_min)
-# #    y_1_list.append(box_1.x_max)
-# #    x_1_list.append(box_2.y_min)
-# #    y_1_list.append(box_2.x_max)
-#
-# #    x_2_list.append(box_1.y_max)
-# #    y_2_list.append(box_1.x_min)
-# #    x_2_list.append(box_2.y_max)
-# #    y_2_list.append(box_2.x_min)
-#
-# #ax.scatter(x_1_list, y_1_list)
-# #ax.scatter(x_2_list, y_2_list)
-# #plt.imshow(cv.imread(img_path_new), cmap='gray')
-# #plt.grid()
+
+    results_final = model(img_final, size=540)
+    print("results_final",results_final)
+
+    st.subheader("YOLO Object Detection Results")
+
+    for i, img_result in enumerate(results_final.xywh):
+        img_orig = img_final
+        img_with_detections = draw_yolo_detections(img_orig, img_result, results_final.names)
+
+        # OpenCV BGR → RGB，因為 Streamlit 需要 RGB
+        img_with_detections_rgb = cv.cvtColor(img_with_detections, cv.COLOR_BGR2RGB)
+
+        # 在 Streamlit 顯示圖片
+        st.image(img_with_detections_rgb, caption=f"Detected Objects in Image {i+1}",use_container_width=True)
+
+    bboxes_final = results_final.pandas().xywh[0]  # img1 predictions (pandas)
+    print("bboxes_final: ",bboxes_final)
+    # final_bbox_list = []
+    # for index, row in bboxes_final.iterrows():
+    #     this_box = BBoxCoordinates(row['ymin'] , row['ymax'] ,
+    #                                row['xmin'] , row['xmax'] )
+    #     final_bbox_list.append(this_box)
+
+    return bboxes_final
+
+
+
 

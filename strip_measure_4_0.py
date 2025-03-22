@@ -41,8 +41,10 @@ from dataclasses import dataclass, field
 import matplotlib.pyplot as plt
 import matplotlib
 import pickle
-
-
+import streamlit as st
+import torch
+from fast_scnn.fast_scnn import FastSCNN
+from PIL import Image
 """ Data Classes """
 
 
@@ -144,21 +146,24 @@ def estimate_pose(camera_matrix, object_points, img_points):
 """ File Loading and Torch related Functions """
 
 
-def prepare_networks_for_measurement(model_yolo_path: str, model_segmentation_path: str) -> \
-        Tuple[smp.DeepLabV3, torch.nn.Module]:
+def prepare_networks_for_measurement(model_yolo_path: str, model_segmentation_path: str):
     if torch.cuda.is_available():
         this_device = "cuda"
-        print('using gpu')
+        print('Using GPU')
     else:
         this_device = "cpu"
-        print('using cpu')
-    segmentation_model = smp.DeepLabV3('resnet152', in_channels=1, classes=5, encoder_depth=5, activation='logsoftmax',
-                                       aux_params=None)
+        print('Using CPU')
 
-    segmentation_model.load_state_dict(torch.load(model_segmentation_path, map_location=this_device))
+    # Load FastSCNN to replace DeepLabV3.
+    segmentation_model = FastSCNN(num_classes=2)  
+    checkpoint = torch.load(model_segmentation_path, map_location=this_device)
+    segmentation_model.load_state_dict(checkpoint["model_state_dict"])  # 提取正確的 key
+
     segmentation_model.to(this_device).eval()
-    model_yolo = torch.hub.load('ultralytics/yolov5', 'custom', path=model_yolo_path, verbose=None).to(
-        this_device)  # local model
+
+    # 加載 YOLOv5
+    model_yolo = torch.hub.load('ultralytics/yolov5', 'custom', path=model_yolo_path, verbose=None).to(this_device)
+
     return segmentation_model, model_yolo
 
 
@@ -172,6 +177,7 @@ def load_img_2input_tensor_1_channel(img_path, crop_bounds=None):
         image = image[crop_bounds[0]:crop_bounds[1], crop_bounds[2]:crop_bounds[3]]
     height, width = np.shape(image)
     input_image = preprocess(image)
+    
     # Typecasting
     input_image = input_image.type(torch.float)
     input_image = torch.reshape(input_image, (1, height, width))
@@ -389,117 +395,44 @@ def measure_strip(img_path: str, model_yolo: torch.nn.Module, segmentation_model
                   lower_contour_quadratic_constant: float, boundary_1: Tuple[int, int], boundary_2: Tuple[int, int],
                   image_size_seg: int, image_width_seg: int, image_height_seg: int) -> Tuple[np.ndarray, np.ndarray]:
 
-    measure_data = StripMeasuredData()
+    
 
     object_detection_result = evaluate_yolo_2(model_yolo, img_path, image_size_seg, boundary_1, boundary_2)
-    if len(object_detection_result) > 0:
-        if len(object_detection_result) == 1:
-            bbox_upper = object_detection_result[0]
-            bbox_lower = object_detection_result[0]
-        else:
-            if object_detection_result[0].x_min < object_detection_result[1].x_min:
-                bbox_upper = object_detection_result[0]
-                bbox_lower = object_detection_result[1]
-            else:
-                bbox_upper = object_detection_result[1]
-                bbox_lower = object_detection_result[0]
+    print(object_detection_result["width"])
+    xcenter, ycenter = int(object_detection_result["ycenter"])/1408*3024, int(object_detection_result["xcenter"])/1408*4032
+    y_min = ycenter-image_height_seg//2
+    x_min = xcenter-image_width_seg//2
+        
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    
+    image = Image.open(img_path).convert('RGB')
+    print("original size of image",image.size)
+    cropped = image.crop((x_min, y_min, x_min + image_width_seg, y_min + image_height_seg))
+    # print(f"cropped shape before transform: {cropped.size}")  # 查看 PIL Image 的尺寸
+    target_size = (3200, 315)  
+    final_img = cropped.resize(target_size, Image.BILINEAR)
+    final_img = transform(final_img).unsqueeze(0)
+    st.image(cropped, use_container_width=True)
+    # print(f"cropped shape after transform: {cropped.shape}")  # 查看 Tensor 的尺寸
 
-        measure_data.bounding_box_a = bbox_upper
-        measure_data.bounding_box_b = bbox_lower
 
-        seg_x_center = 0.5 * (bbox_upper.x_center + bbox_lower.x_center)
-        seg_y_center = 0.5 * (bbox_upper.y_center + bbox_lower.y_center)
-        x_crop_lower = max(int(seg_x_center - 0.5 * image_height_seg), 0)
-        y_crop_lower = max(int(seg_y_center - 0.5 * image_width_seg), 0)
-        seg_crop_bounds = (x_crop_lower, x_crop_lower + image_height_seg, y_crop_lower, y_crop_lower + image_width_seg)
-
-        input_image_tensor = load_img_2input_tensor_1_channel(img_path, crop_bounds=seg_crop_bounds)
-        with torch.set_grad_enabled(False):
-            with autocast():
-                prediction = segmentation_model.forward(input_image_tensor)
+    with torch.set_grad_enabled(False):
+        with autocast():
+            prediction = segmentation_model.forward(final_img)
+    print(prediction)
+    if isinstance(prediction, tuple):  # 🔥 如果是 tuple，取第一個輸出
+        prediction = prediction[0]
+    # 確保 prediction 是 tensor 才能執行 argmax
+    if isinstance(prediction, torch.Tensor):
         mask = prediction.argmax(1)
-        mask = mask[0, :, :].cpu().numpy()
-
-        bbox_upper.shift_coordinates(seg_crop_bounds[0], seg_crop_bounds[2])
-        bbox_lower.shift_coordinates(seg_crop_bounds[0], seg_crop_bounds[2])
-        contours_upper, contours_lower = extract_profile_lines(mask, bbox_upper, bbox_lower)
-
-        lower_coal_profile = np.argwhere(contours_lower[2] > 0) + np.asarray([seg_crop_bounds[0], seg_crop_bounds[2]])
-        upper_coal_profile = np.argwhere(contours_upper[2] > 0) + np.asarray([seg_crop_bounds[0], seg_crop_bounds[2]])
-        lower_aluminum_high = np.argwhere(contours_lower[1] > 0) + np.asarray([seg_crop_bounds[0], seg_crop_bounds[2]])
-        upper_aluminum_high = np.argwhere(contours_upper[1] > 0) + np.asarray([seg_crop_bounds[0], seg_crop_bounds[2]])
-        lower_aluminum_base = np.argwhere(contours_lower[0] > 0) + np.asarray([seg_crop_bounds[0], seg_crop_bounds[2]])
-        upper_aluminum_base = np.argwhere(contours_upper[0] > 0) + np.asarray([seg_crop_bounds[0], seg_crop_bounds[2]])
-
-        bbox_upper.shift_coordinates(-seg_crop_bounds[0], -seg_crop_bounds[2])
-        bbox_lower.shift_coordinates(-seg_crop_bounds[0], -seg_crop_bounds[2])
-
-        upper_contours = [upper_aluminum_base, upper_aluminum_high, upper_coal_profile]
-        lower_contours = [lower_aluminum_base, lower_aluminum_high, lower_coal_profile]
-
-        img_ref_points = [
-            [bbox_lower.y_max, bbox_lower.x_min],
-            [bbox_upper.y_max, bbox_upper.x_min],
-            [bbox_upper.y_min, bbox_upper.x_max],
-            [bbox_lower.y_min, bbox_lower.x_max]
-        ]
-
-        pose_estimate = estimate_pose(camera_matrix=camera_matrix, object_points=object_reference_points,
-                                      img_points=img_ref_points)
-        r_vec = [-pose_estimate[1][1, 0], pose_estimate[1][0, 0], pose_estimate[1][2, 0]]
-        t_vec = [-pose_estimate[2][1, 0], pose_estimate[2][0, 0], pose_estimate[2][2, 0]]
-        estimated_rotation = R.from_rotvec(r_vec)
-        estimated_euler = estimated_rotation.as_euler(seq='XYZ')
-        measure_data.estimated_euler_angles = estimated_euler
-        measure_data.estimated_distances = np.asarray(t_vec)
-
-        transformed_lower_contours = []
-        for this_contour in lower_contours:
-            this_contour = [(row[0], row[1]) for row in this_contour]
-            trans_1 = pix2_object_surf(this_contour, estimated_euler, t_vec,
-                                       camera_parameters[0], camera_parameters[1],
-                                       camera_parameters[2], camera_parameters[3],
-                                       plane_parameters_close[0], plane_parameters_close[1], plane_parameters_close[2],
-                                       angle_order=('x', 'y', 'z'))
-            trans_1_norm = np.asarray([[entry[0][1], int(entry[0][2])] for entry in trans_1])
-            transformed_lower_contours.append(discretize_contour(trans_1_norm))
-
-        transformed_upper_contours = []
-        for this_contour in upper_contours:
-            this_contour = [(row[0], row[1]) for row in this_contour]
-            trans_2 = pix2_object_surf(this_contour, estimated_euler, t_vec,
-                                       camera_parameters[0], camera_parameters[1],
-                                       camera_parameters[2], camera_parameters[3],
-                                       plane_parameters_far[0], plane_parameters_far[1], plane_parameters_far[2],
-                                       angle_order=('x', 'y', 'z'))
-            trans_2_norm = np.asarray([[entry[0][1], int(entry[0][2])] for entry in trans_2])
-            transformed_upper_contours.append(discretize_contour(trans_2_norm))
-
-        shifted_alu_base_lower, shifted_alu_higher_lower, shifted_coal_lower = correct_countours_mean(
-            transformed_lower_contours[0], transformed_lower_contours[1], transformed_lower_contours[2])
-
-        shifted_alu_base_upper, shifted_alu_higher_upper, shifted_coal_upper = correct_countours_mean(
-            transformed_upper_contours[0], transformed_upper_contours[1], transformed_upper_contours[2])
-
-        sheared_alu_base_lower, sheared_alu_higher_lower, sheared_coal_lower = correct_shear_contours(
-            shifted_alu_base_lower, shifted_alu_higher_lower, shifted_coal_lower)
-
-        sheared_alu_base_upper, sheared_alu_higher_upper, sheared_coal_upper = correct_shear_contours(
-            shifted_alu_base_upper, shifted_alu_higher_upper, shifted_coal_upper)
-
-        final_upp_lower, final_low_lower = harmonize_disc_contours(sheared_coal_lower, sheared_alu_higher_lower)
-        final_upp_upper, final_low_upper = harmonize_disc_contours(sheared_coal_upper, sheared_alu_higher_upper)
-
-        fitted_lower_lower = fit_lower_base_new(low_base_cont_x=final_low_lower[:, 1],
-                                                low_base_cont_y=final_low_lower[:, 0],
-                                                lower_contour_quadratic_constant=lower_contour_quadratic_constant)
-        fitted_lower_upper = fit_lower_base_new(low_base_cont_x=final_low_upper[:, 1],
-                                                low_base_cont_y=final_low_upper[:, 0],
-                                                lower_contour_quadratic_constant=lower_contour_quadratic_constant)
-
-        profile_a = np.vstack([final_upp_upper[:, 0] - fitted_lower_upper, final_upp_upper[:, 1]]).T
-        profile_b = np.vstack([final_upp_lower[:, 0] - fitted_lower_lower, final_upp_lower[:, 1]]).T
-        return profile_a, profile_b
+    else:
+        raise TypeError(f"Expected prediction to be torch.Tensor, but got {type(prediction)}")
+    
+    
+    return cropped,mask
 
 
 
@@ -525,8 +458,10 @@ if __name__ == '__main__':
     BOUNDARY_1 = (300, 92)
     BOUNDARY_2 = (650, 1500)
     IMAGE_SIZE_SEG = 1408
-    IMAGE_WIDTH_SEG = 1408
-    IMAGE_HEIGHT_SEG = 576
+    # IMAGE_WIDTH_SEG = 1408
+    IMAGE_WIDTH_SEG = 3200
+    # IMAGE_HEIGHT_SEG = 576
+    IMAGE_HEIGHT_SEG = 320
     
     path_image = 'testing/2022_10_02, 06_08_56_715981.png'  #'testing/2022_10_15, 06_07_50_539720.png'
     path_yolo_model = 'app/best.pt'

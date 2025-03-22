@@ -330,10 +330,11 @@ class StripMeasuredData:
 
     bounding_box_a: BBoxCoordinates = field(init=True, default=False)
     bounding_box_b: BBoxCoordinates = field(init=True, default=False)
-    estimated_euler_angles: np.ndarray = field(init=True, default=np.zeros((3, 1)))
-    estimated_distances: np.ndarray = field(init=True, default=np.zeros((3, 1)))
-    profile_a: np.ndarray = field(init=True, default=np.zeros((601, 2)))
-    profile_b: np.ndarray = field(init=True, default=np.zeros((601, 2)))
+    estimated_euler_angles: np.ndarray = field(init=True, default_factory=lambda: np.zeros((3, 1)))
+    estimated_distances: np.ndarray = field(init=True, default_factory=lambda: np.zeros((3, 1)))
+    profile_a: np.ndarray = field(init=True, default_factory=lambda: np.zeros((601, 2)))
+    profile_b: np.ndarray = field(init=True, default_factory=lambda: np.zeros((601, 2)))
+
     sliding_strip_type: str = field(init=True, default=False)
 
     img_matched_source_data: InitVar[ImageMatchedData] = field(init=True, default=False)
